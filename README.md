@@ -21,6 +21,8 @@ Waifu.im, Danbooru, and yande.re. Select a provider on the **Provider** page in 
 
 Click the search icon in the header to open the provider search field. Waifu.im searches one tag;
 Danbooru and yande.re accept booru tag syntax, for example `genshin_impact raiden_shogun`.
+For a single name such as `changli`, the booru providers use a tag-prefix search to match longer
+character tags such as `changli_(wuthering_waves)`.
 The NSFW switch filters to rating `s` when off and non-safe ratings when on.
 
 The **Use DNS over HTTPS** option in Preferences uses Cloudflare DNS. It is off by default and can

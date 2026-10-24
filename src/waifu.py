@@ -83,7 +83,7 @@ class WaifuDownloaderAPI:
 		return images[0]["url"]
 
 	def _get_danbooru(self, nsfw, search_term):
-		tags = self._booru_search_tags(search_term)
+		tags = self._booru_search_tags(search_term, prefix_match=True)
 		tags.append("-rating:s" if nsfw else "rating:s")
 		response = self.session.get(
 			"https://danbooru.donmai.us/posts.json",
@@ -96,7 +96,7 @@ class WaifuDownloaderAPI:
 		return self.info["items"][0]["url"]
 
 	def _get_yandere(self, nsfw, search_term):
-		tags = self._booru_search_tags(search_term)
+		tags = self._booru_search_tags(search_term, prefix_match=True)
 		tags.extend(["-rating:s" if nsfw else "rating:s", "order:random"])
 		response = self.session.get(
 			"https://yande.re/post.json",
@@ -134,11 +134,16 @@ class WaifuDownloaderAPI:
 		return post.get("file_url") or post.get("large_file_url") or post.get("sample_url") or post.get("jpeg_url")
 
 	@staticmethod
-	def _booru_search_tags(search_term):
+	def _booru_search_tags(search_term, prefix_match=False):
 		query = search_term.strip()
 		if " " in query and "_" not in query:
 			query = query.replace(" ", "_")
-		return query.split()
+		tags = query.split()
+		if prefix_match and len(tags) == 1:
+			tag = tags[0]
+			if tag and not any(char in tag for char in "*~()") and ":" not in tag and not tag.startswith("-"):
+				tags[0] = f"{tag}*"
+		return tags
 
 	@staticmethod
 	def _no_results(search_term):
