@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="PreferencesWindow" parent="AdwPreferencesWindow">
+    <property name="default_height">300</property>
+    <property name="default_width">500</property>
+    <property name="modal">True</property>
+    <property name="search-enabled">False</property>
+    <child>
+      <object class="AdwPreferencesPage">
+        <child>
+          <object class="AdwPreferencesGroup" id="dark_group">
+            <property name="title" translatable="yes">Images</property>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title" translatable="yes">Allow NSFW Images</property>
+                <property name="activatable_widget">nsfw</property>
+                <child>
+                  <object class="GtkSwitch" id="nsfw">
+                    <property name="valign">center</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title" translatable="yes">Network</property>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title" translatable="yes">Use DNS over HTTPS</property>
+                <property name="subtitle" translatable="yes">Resolve host names through Cloudflare DNS</property>
+                <property name="activatable-widget">doh</property>
+                <child>
+                  <object class="GtkSwitch" id="doh">
+                    <property name="valign">center</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title" translatable="yes">Image source</property>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title" translatable="yes">Provider</property>
+                <property name="subtitle" translatable="yes">Auto tries other sources if one is unavailable</property>
+                <child type="suffix">
+                  <object class="GtkDropDown" id="provider">
+                    <property name="valign">center</property>
+                    <property name="width-request">150</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>
