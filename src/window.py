@@ -118,12 +118,11 @@ class WaifudownloaderWindow(Adw.ApplicationWindow):
         use_doh = bool(self.settings.get_preference("doh"))
         ct = WaifuDownloaderAPI(use_doh=use_doh)
         try:
-            url = ct.get_neko(bool(nsfwsetting), search_term, provider)
-            content = ct.get_image(url)
+            info, content = ct.get_random_image(bool(nsfwsetting), search_term, provider)
         except Exception as error:
             GLib.idle_add(self.show_load_error, str(error))
             return
-        GLib.idle_add(self.display_image, ct.info, content)
+        GLib.idle_add(self.display_image, info, content)
 
     def display_image(self, info, content):
         self.info = info

@@ -2,6 +2,8 @@ import random
 from urllib.parse import urlparse
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from .doh import set_doh_enabled
 
@@ -10,6 +12,17 @@ class WaifuDownloaderAPI:
 	def __init__(self, use_doh=False):
 		self.endpoint = "https://api.waifu.im/images"
 		self.session = requests.Session()
+		retry = Retry(
+			total=1,
+			connect=1,
+			read=1,
+			status=1,
+			backoff_factor=0.5,
+			status_forcelist=(429, 500, 502, 503, 504),
+			allowed_methods=frozenset(("GET",)),
+			respect_retry_after_header=True,
+		)
+		self.session.mount("https://", HTTPAdapter(max_retries=retry))
 		self.session.headers.update({
 			"User-Agent": "Waifu Downloader for Windows/0.3 (desktop image viewer)",
 			"Accept-Version": "v7",
@@ -40,11 +53,27 @@ class WaifuDownloaderAPI:
 			return self._get_waifu_im(nsfw, search_term)
 		raise ValueError(f"Unknown provider: {provider}")
 
+	def get_random_image(self, nsfw=False, search_term="", provider="Auto"):
+		"""Fetch an image, falling back across providers in Auto mode."""
+		if provider != "Auto":
+			url = self.get_neko(nsfw, search_term, provider)
+			return self.info, self.get_image(url)
+
+		errors = []
+		for name in ("Waifu.im", "Danbooru", "yande.re"):
+			try:
+				url = self.get_neko(nsfw, search_term, name)
+				content = self.get_image(url)
+				return self.info, content
+			except (requests.RequestException, ValueError) as error:
+				errors.append(f"{name}: {error}")
+		raise RuntimeError("All providers failed: " + " | ".join(errors))
+
 	def _get_waifu_im(self, nsfw, search_term):
 		params = {"IsNsfw": str(nsfw), "PageSize": 1}
 		if search_term:
 			params["IncludedTags"] = search_term.casefold().replace(" ", "-")
-		response = self.session.get(self.endpoint, params=params, timeout=15)
+		response = self.session.get(self.endpoint, params=params, timeout=(5, 15))
 		response.raise_for_status()
 		data = response.json()
 		images = data.get("items") or []
@@ -59,7 +88,7 @@ class WaifuDownloaderAPI:
 		response = self.session.get(
 			"https://danbooru.donmai.us/posts.json",
 			params={"tags": " ".join(tags), "limit": 20, "random": 1},
-			timeout=20,
+			timeout=(5, 20),
 		)
 		response.raise_for_status()
 		posts = response.json()
@@ -72,7 +101,7 @@ class WaifuDownloaderAPI:
 		response = self.session.get(
 			"https://yande.re/post.json",
 			params={"api_version": 2, "tags": " ".join(tags), "limit": 20},
-			timeout=20,
+			timeout=(5, 20),
 		)
 		response.raise_for_status()
 		posts = response.json()
@@ -118,6 +147,6 @@ class WaifuDownloaderAPI:
 		raise ValueError("The provider returned no images.")
 
 	def get_image(self, url):
-		response = self.session.get(url, timeout=30)
+		response = self.session.get(url, timeout=(5, 25))
 		response.raise_for_status()
 		return response.content
