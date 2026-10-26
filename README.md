@@ -16,6 +16,7 @@ Waifu.im, Danbooru, and yande.re. Select a provider on the **Provider** page in 
 ## Added in this Windows port
 
 - Search images by name or tags.
+- Filter booru results to posts tagged with a girl character and exclude posts tagged with boys or male focus.
 - Choose Waifu.im, Danbooru, or yande.re manually, or use **Auto** to fall back between providers.
 - Optionally resolve provider host names through Cloudflare DNS over HTTPS.
 
@@ -23,7 +24,9 @@ Click the search icon in the header to open the provider search field. Waifu.im 
 Danbooru and yande.re accept booru tag syntax, for example `genshin_impact raiden_shogun`.
 For a single name such as `changli`, the booru providers use a tag-prefix search to match longer
 character tags such as `changli_(wuthering_waves)`.
-The NSFW switch filters to rating `s` when off and non-safe ratings when on.
+The NSFW switch filters to rating `s` when off and ratings `q` or `e` when on. Booru results also
+need the `1girl` tag and exclude common male-character tags. These are provider tags, so incomplete
+or inaccurate tagging can still affect results.
 
 The **Use DNS over HTTPS** option in Preferences uses Cloudflare DNS. It is off by default and can
 help only when a provider is blocked at the DNS-resolution level. It does not affect blocks at other
@@ -48,7 +51,7 @@ To create a distributable Windows build, run this in PowerShell from the project
 The script installs the MSYS2 UCRT64 build dependencies, compiles the GTK resources, and packages
 the app with PyInstaller. It creates a folder build and a ZIP asset:
 
-- `dist\Waifu Downloader for Windows\Waifu Downloader for Windows.exe`
+- `dist-release\Waifu Downloader for Windows\Waifu Downloader for Windows.exe`
 - `dist\WaifuDownloader-Windows-x64.zip`
 
 Use the ZIP for distribution. It contains the executable and its bundled runtime files; do not

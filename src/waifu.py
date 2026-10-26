@@ -71,8 +71,10 @@ class WaifuDownloaderAPI:
 
 	def _get_waifu_im(self, nsfw, search_term):
 		params = {"IsNsfw": str(nsfw), "PageSize": 1}
+		included_tags = ["waifu"]
 		if search_term:
-			params["IncludedTags"] = search_term.casefold().replace(" ", "-")
+			included_tags.append(search_term.casefold().replace(" ", "-"))
+		params["IncludedTags"] = included_tags
 		response = self.session.get(self.endpoint, params=params, timeout=(5, 15))
 		response.raise_for_status()
 		data = response.json()
@@ -84,34 +86,55 @@ class WaifuDownloaderAPI:
 
 	def _get_danbooru(self, nsfw, search_term):
 		tags = self._booru_search_tags(search_term, prefix_match=True)
-		tags.append("-rating:s" if nsfw else "rating:s")
-		response = self.session.get(
-			"https://danbooru.donmai.us/posts.json",
-			params={"tags": " ".join(tags), "limit": 20, "random": 1},
-			timeout=(5, 20),
+		posts = self._get_booru_posts(
+			"https://danbooru.donmai.us/posts.json", tags, nsfw
 		)
-		response.raise_for_status()
-		posts = response.json()
-		self._set_booru_result(posts, search_term)
+		self._set_booru_result(posts, search_term, nsfw)
 		return self.info["items"][0]["url"]
 
 	def _get_yandere(self, nsfw, search_term):
 		tags = self._booru_search_tags(search_term, prefix_match=True)
-		tags.extend(["-rating:s" if nsfw else "rating:s", "order:random"])
-		response = self.session.get(
-			"https://yande.re/post.json",
-			params={"api_version": 2, "tags": " ".join(tags), "limit": 20},
-			timeout=(5, 20),
+		posts = self._get_booru_posts(
+			"https://yande.re/post.json", tags, nsfw, yandere=True
 		)
-		response.raise_for_status()
-		posts = response.json()
-		self._set_booru_result(posts, search_term)
+		self._set_booru_result(posts, search_term, nsfw)
 		return self.info["items"][0]["url"]
 
-	def _set_booru_result(self, posts, search_term):
+	def _get_booru_posts(self, endpoint, tags, nsfw, yandere=False):
+		# Never use -rating:s for NSFW: it also matches general/unrated posts.
+		# Query questionable and explicit separately, then combine the matches.
+		ratings = ("q", "e") if nsfw else ("s",)
+		posts = []
+		for rating in ratings:
+			# Keep the remote query small: Danbooru rejects long anonymous queries.
+			# Gender filtering is applied locally to the returned post metadata.
+			query_tags = [*tags, f"rating:{rating}"]
+			if yandere:
+				query_tags.append("order:random")
+				params = {"api_version": 2, "tags": " ".join(query_tags), "limit": 100}
+			else:
+				params = {"tags": " ".join(query_tags), "limit": 100, "random": 1}
+			response = self.session.get(endpoint, params=params, timeout=(5, 20))
+			response.raise_for_status()
+			result = response.json()
+			if isinstance(result, dict):
+				result = result.get("posts", [])
+			posts.extend(post for post in result if post.get("rating") == rating)
+		return posts
+
+	def _set_booru_result(self, posts, search_term, nsfw):
 		if not isinstance(posts, list):
 			posts = posts.get("posts", [])
-		posts = [post for post in posts if self._post_url(post)]
+		allowed_ratings = ("q", "e") if nsfw else ("s",)
+		girl_tags = {"1girl", "2girls", "3girls", "4girls", "5girls", "6+girls", "female_focus"}
+		boy_tags = {"1boy", "2boys", "3boys", "4boys", "5boys", "6+boys", "male_focus", "male_only"}
+		posts = [
+			post for post in posts
+			if post.get("rating") in allowed_ratings
+			and self._post_tags(post).intersection(girl_tags)
+			and not self._post_tags(post).intersection(boy_tags)
+			and self._post_url(post)
+		]
 		if not posts:
 			self._no_results(search_term)
 		post = random.choice(posts)
@@ -132,6 +155,32 @@ class WaifuDownloaderAPI:
 	@staticmethod
 	def _post_url(post):
 		return post.get("file_url") or post.get("large_file_url") or post.get("sample_url") or post.get("jpeg_url")
+
+	@staticmethod
+	def _post_tags(post):
+		values = [
+			post.get("tag_string"),
+			post.get("tag_string_general"),
+			post.get("tag_string_character"),
+			post.get("tag_string_copyright"),
+			post.get("tag_string_artist"),
+			post.get("tags"),
+		]
+		tags = set()
+		for value in values:
+			if isinstance(value, str):
+				tags.update(value.casefold().split())
+			elif isinstance(value, dict):
+				tags.update(str(tag).casefold() for tag in value.values())
+			elif isinstance(value, list):
+				for tag in value:
+					if isinstance(tag, dict):
+						name = tag.get("name")
+						if name:
+							tags.add(str(name).casefold())
+					elif isinstance(tag, str):
+						tags.add(tag.casefold())
+		return tags
 
 	@staticmethod
 	def _booru_search_tags(search_term, prefix_match=False):
